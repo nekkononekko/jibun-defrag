@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>じぶんデフラグ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --desk:#3a7b7b;
+  --win:#c3c3c3;
+  --win-text:#111;
+  --hi:#ffffff;
+  --lo:#7b7b7b;
+  --dk:#2b2b2b;
+  --title-a:#0a246a;
+  --title-b:#3a6ea5;
+  --title-text:#ffffff;
+  --field:#ffffff;
+  --cell-empty:#ffffff;
+  --cell-line:#d4d4d4;
+  --muted:#4a4a4a;
+  --t-make:#d0342c;
+  --t-tell:#1f5fbf;
+  --t-order:#e0b000;
+  --t-bond:#2e8b57;
+  --t-seek:#7d3cb5;
+  --t-move:#e07a1f;
+  --t-go:#8a8a8a;
+  --active:#00e0ff;
+  --focus:#000;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --desk:#14302f;
+    --win:#3b3d40;
+    --win-text:#ececec;
+    --hi:#5c5f63;
+    --lo:#1f2022;
+    --dk:#0c0c0d;
+    --title-a:#0b1a45;
+    --title-b:#2c4f7c;
+    --field:#26282a;
+    --cell-empty:#2b2d30;
+    --cell-line:#3a3d41;
+    --muted:#b9b9b9;
+    --t-make:#e5544b;
+    --t-tell:#4f86e6;
+    --t-order:#e9c22e;
+    --t-bond:#46b073;
+    --t-seek:#a26ad6;
+    --t-move:#f0943f;
+    --t-go:#6b6b6b;
+    --focus:#fff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --desk:#14302f;
+  --win:#3b3d40;
+  --win-text:#ececec;
+  --hi:#5c5f63;
+  --lo:#1f2022;
+  --dk:#0c0c0d;
+  --title-a:#0b1a45;
+  --title-b:#2c4f7c;
+  --field:#26282a;
+  --cell-empty:#2b2d30;
+  --cell-line:#3a3d41;
+  --muted:#b9b9b9;
+  --t-make:#e5544b;
+  --t-tell:#4f86e6;
+  --t-order:#e9c22e;
+  --t-bond:#46b073;
+  --t-seek:#a26ad6;
+  --t-move:#f0943f;
+  --t-go:#6b6b6b;
+  --focus:#fff;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;min-height:100%;
+  background:var(--desk);
+  color:var(--win-text);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;
+  font-size:15px;line-height:1.7;
+  display:flex;justify-content:center;align-items:flex-start;
+  padding:24px 12px 40px;
+}
+.dot{font-family:"DotGothic16","MS Gothic","Osaka-Mono",monospace;letter-spacing:.02em}
+.window{
+  width:100%;max-width:760px;background:var(--win);
+  box-shadow:inset -1px -1px 0 var(--dk),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--lo),inset 2px 2px 0 var(--win);
+  padding:3px;
+}
+.titlebar{
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(90deg,var(--title-a),var(--title-b));
+  color:var(--title-text);padding:4px 6px 4px 8px;font-size:15px;
+}
+.titlebar .ctrls{display:flex;gap:3px}
+.titlebar .ctrls span{
+  width:18px;height:16px;background:var(--win);display:inline-block;
+  box-shadow:inset -1px -1px 0 var(--dk),inset 1px 1px 0 var(--hi);
+}
+.menubar{display:flex;gap:16px;padding:3px 8px;font-size:13px;color:var(--muted)}
+.body{padding:14px 14px 10px}
+.mapframe{
+  background:var(--field);padding:6px;
+  box-shadow:inset 1px 1px 0 var(--lo),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dk);
+}
+.grid{
+  display:grid;grid-template-columns:repeat(36,1fr);gap:1px;
+  background:var(--cell-line);
+}
+.cell{aspect-ratio:1/1;background:var(--cell-empty);transition:background-color .12s linear}
+.cell.t-make{background:var(--t-make)}
+.cell.t-tell{background:var(--t-tell)}
+.cell.t-order{background:var(--t-order)}
+.cell.t-bond{background:var(--t-bond)}
+.cell.t-seek{background:var(--t-seek)}
+.cell.t-move{background:var(--t-move)}
+.cell.t-go{background:repeating-linear-gradient(45deg,var(--t-go) 0 2px,var(--cell-empty) 2px 4px)}
+.cell.active{outline:2px solid var(--active);outline-offset:-1px;position:relative;z-index:1}
+.grid.inspectable .cell:not(.empty){cursor:pointer}
+.panel{margin-top:14px;min-height:240px}
+h1{font-size:22px;line-height:1.4;margin:4px 0 8px;font-weight:400}
+h2{font-size:18px;line-height:1.5;margin:0 0 4px;font-weight:700}
+p{margin:0 0 10px;max-width:40em}
+.qcount{font-size:13px;color:var(--muted);margin:0 0 6px}
+.hint{font-size:13px;color:var(--muted);margin:0 0 12px}
+fieldset{border:none;margin:0;padding:0}
+.options{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 18px}
+.opt{display:flex;align-items:flex-start;gap:10px;padding:6px 4px;cursor:pointer}
+.opt input{appearance:none;-webkit-appearance:none;flex:0 0 auto;width:16px;height:16px;margin:4px 0 0;
+  background:var(--field);
+  box-shadow:inset 1px 1px 0 var(--lo),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dk);
+  display:grid;place-items:center;cursor:pointer}
+.opt input:checked::after{content:"";width:8px;height:5px;border-left:2px solid var(--win-text);border-bottom:2px solid var(--win-text);transform:rotate(-45deg) translate(1px,-1px)}
+.opt input:focus-visible{outline:1px dotted var(--focus);outline-offset:2px}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+button{
+  font:inherit;font-size:14px;color:var(--win-text);background:var(--win);border:none;
+  min-width:96px;padding:6px 14px;cursor:pointer;
+  box-shadow:inset -1px -1px 0 var(--dk),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--lo),inset 2px 2px 0 var(--win);
+}
+button:active{box-shadow:inset 1px 1px 0 var(--dk),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--lo)}
+button:focus-visible{outline:1px dotted var(--focus);outline-offset:-5px}
+button[disabled]{color:var(--lo);cursor:default}
+.statusbar{display:flex;gap:3px;margin-top:10px;font-size:13px}
+.statusbar > div{
+  padding:2px 8px;
+  box-shadow:inset 1px 1px 0 var(--lo),inset -1px -1px 0 var(--hi);
+}
+.statusbar .msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress{
+  height:22px;margin-top:12px;padding:3px;background:var(--field);
+  box-shadow:inset 1px 1px 0 var(--lo),inset -1px -1px 0 var(--hi),inset 2px 2px 0 var(--dk);
+}
+.progress .bar{height:100%;width:0;background:repeating-linear-gradient(90deg,var(--title-a) 0 10px,transparent 10px 12px)}
+.legend{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px}
+.legend li{display:flex;gap:10px;align-items:flex-start}
+.sw{flex:0 0 auto;width:14px;height:14px;margin-top:5px}
+.legend .labels{font-size:14px}
+.gaph{margin-top:20px}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+.cell.pv{background-image:radial-gradient(circle at 50% 50%, rgba(255,255,255,.85) 0 26%, transparent 29%)}
+.patkey{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin:4px 0 10px;color:var(--muted)}
+.patkey span{display:inline-flex;align-items:center;gap:6px}
+.patkey i{display:inline-block;width:14px;height:14px;background:var(--t-tell)}
+.patkey i.pv{background-image:radial-gradient(circle at 50% 50%, rgba(255,255,255,.85) 0 26%, transparent 29%)}
+.other{margin-top:12px;padding:10px 12px;background:var(--field);box-shadow:inset 1px 1px 0 var(--lo),inset -1px -1px 0 var(--hi)}
+.other label{font-size:14px;display:block;margin-bottom:6px}
+.other input[type=text]{width:100%;font:inherit;font-size:15px;padding:6px 8px;border:none;background:var(--cell-empty);color:var(--win-text);box-shadow:inset 1px 1px 0 var(--lo),inset -1px -1px 0 var(--hi)}
+.other input[type=text]:focus-visible{outline:1px dotted var(--focus);outline-offset:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:4px 8px;cursor:pointer;background:var(--win);box-shadow:inset -1px -1px 0 var(--dk),inset 1px 1px 0 var(--hi)}
+.chip input{position:absolute;opacity:0;width:1px;height:1px}
+.chip:has(input:checked){box-shadow:inset 1px 1px 0 var(--dk),inset -1px -1px 0 var(--hi);background:var(--field)}
+.chip:has(input:focus-visible){outline:1px dotted var(--focus)}
+.chip i{width:12px;height:12px;display:inline-block}
+.section-tag{display:inline-block;font-size:12px;padding:1px 8px;margin-bottom:6px;background:var(--title-a);color:#fff}
+.both{display:inline-block;font-size:12px;padding:0 6px;margin-left:6px;border:1px solid var(--win-text)}
+.legend .labels small{display:block;color:var(--muted);font-size:13px}
+.feedback{margin-top:18px;padding:10px 12px;background:var(--field);box-shadow:inset 1px 1px 0 var(--lo),inset -1px -1px 0 var(--hi);font-size:14px}
+.feedback p{margin:0 0 6px}
+.feedback a{color:var(--win-text);text-decoration:underline;text-underline-offset:3px}
+
+@media (max-width:520px){
+  body{padding:12px 6px 28px}
+  .body{padding:10px 8px 8px}
+  h1{font-size:20px}
+  .grid{grid-template-columns:repeat(24,1fr)}
+  .menubar{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  .cell{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="window" role="application" aria-label="じぶんデフラグ">
+  <div class="titlebar dot"><span>じぶんデフラグ</span><span class="ctrls" aria-hidden="true"><span></span><span></span><span></span></span></div>
+  <div class="menubar dot" aria-hidden="true"><span>ファイル</span><span>操作</span><span>表示</span><span>ヘルプ</span></div>
+  <div class="body">
+    <div class="mapframe"><div class="grid" id="grid" aria-hidden="true"></div></div>
+    <div class="progress" id="progressWrap" hidden><div class="bar" id="bar"></div></div>
+    <div class="panel" id="panel" aria-live="polite"></div>
+    <div class="statusbar dot">
+      <div class="msg" id="status">準備ができました</div>
+      <div id="count">0 ブロック</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // 感想を受け付けるフォームのURL（根っ子名義で作ったものを入れてください）
+  var FEEDBACK_URL="";
+  var THEMES=["make","tell","order","bond","seek","move"];
+  var VERB={make:"つくる",tell:"伝える",order:"整える",bond:"関わる",seek:"調べる",move:"動く"};
+
+  var JOB=[
+    ["新しいやり方やアイデアを考える","make"],["形のあるものをつくる、仕上げる","make"],
+    ["説明する、教える、人前で話す","tell"],["文章や資料、記録にまとめる","tell"],
+    ["段取りを組む、スケジュールを管理する","order"],["数字や記録を正確に合わせる","order"],
+    ["お客さんや患者さん、利用者さんと直接やりとりする","bond"],["チームの調整役、まとめ役","bond"],
+    ["調べる、分析する、原因を突き止める","seek"],
+    ["現場に出る、体を動かして作業する","move"],["トラブルに真っ先に対応する","move"]];
+
+  var QUESTIONS=[
+    {part:"work",q:"仕事で、よく任されていたことは？",opts:JOB},
+    {part:"work",q:"仕事で、自分では何が得意だと思う？",opts:JOB},
+    {part:"work",q:"仕事で、頼まれなくても、ついやっていたことは？",opts:[
+      ["もっといいやり方を考えて、試してしまう","make"],["見た目や仕上がりを、細かく整えてしまう","make"],
+      ["誰かにわかりやすく説明したくなる","tell"],
+      ["散らかったものや情報を、片付けて整理する","order"],["手順やルールを決めて、仕組みにする","order"],
+      ["困っていそうな人に、声をかける","bond"],["場の空気を和ませる","bond"],
+      ["気になったことを、とことん調べる","seek"],
+      ["考える前に、手や足が動いている","move"]]},
+    {part:"work",q:"仕事で、スイッチが入るのはどんなとき？",opts:[
+      ["自分の手で、新しいものを形にできるとき","make"],
+      ["伝わった、わかってもらえたと感じたとき","tell"],
+      ["仕組みや段取りが、うまく回り始めたとき","order"],
+      ["「ありがとう」と言われたとき","bond"],
+      ["面白い謎や課題を見つけたとき","seek"],
+      ["目標や締め切りに向かって走っているとき","move"],["負けたくない相手がいるとき","move"]]},
+    {part:"life",q:"休みの日、気づくとやっていることは？",opts:[
+      ["料理や手芸、DIYなど、手を動かす","make"],
+      ["SNSや日記で、誰かに話したくなる","tell"],
+      ["部屋や持ち物を、片付ける、並べる","order"],
+      ["家族や友人と過ごす、連絡をとる","bond"],
+      ["本や動画で、気になることを調べる","seek"],
+      ["とりあえず出かける、歩く","move"]]},
+    {part:"life",q:"時間を忘れることは？",opts:[
+      ["何かをつくる、描く、育てる","make"],
+      ["書く、話す、発信する","tell"],
+      ["集める、並べる、整理する","order"],
+      ["人と会って話す、誰かの世話をする","bond"],
+      ["本や映画、ゲームに没頭する","seek"],
+      ["知らない場所を歩き回る、体を動かす","move"]]},
+    {part:"life",q:"休んでいる間に、気になったことは？",opts:[
+      ["何かを作りたくなった","make"],
+      ["書きたくなった、話したくなった","tell"],
+      ["片付け、断捨離","order"],
+      ["家族や友人との時間","bond"],
+      ["本を読む、学び直す","seek"],
+      ["散歩や運動","move"]]},
+    {part:"life",q:"仕事以外で、スイッチが入るのはどんなとき？",opts:[
+      ["自分の手で、何かが完成したとき","make"],
+      ["誰かと気持ちが通じたとき","tell"],
+      ["部屋や予定が、すっきり整ったとき","order"],
+      ["誰かの役に立てたとき","bond"],
+      ["知らなかったことを知ったとき","seek"],
+      ["体を動かして、気持ちが晴れたとき","move"]]},
+    {part:"go",letgo:true,q:"もう手放してもいいかな、と思うものは？",opts:[
+      ["肩書き","go"],["人からの評価","go"],["「こうあるべき」","go"],
+      ["予定で埋まった毎日","go"],["意味がありそうに見えること","go"],["誰かとの比較","go"]]}
+  ];
+  var PARTLABEL={work:"仕事",life:"プライベート",go:"手放すもの"};
+
+  var grid=document.getElementById("grid"), panel=document.getElementById("panel");
+  var statusEl=document.getElementById("status"), countEl=document.getElementById("count");
+  var progressWrap=document.getElementById("progressWrap"), bar=document.getElementById("bar");
+  var N=504, cellsEl=[], cells=[], timer=null;
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function fresh(){return QUESTIONS.map(function(){return {sel:[],other:"",ot:null};});}
+  var answers=fresh();
+
+  for(var i=0;i<N;i++){var d=document.createElement("div");d.className="cell empty";d.dataset.i=i;grid.appendChild(d);cellsEl.push(d);cells.push(null);}
+  function paint(i){var c=cells[i];cellsEl[i].className="cell "+(c?("t-"+c.t+(c.p==="life"?" pv":"")):"empty");}
+  function paintAll(){for(var i=0;i<N;i++)paint(i);}
+  function setStatus(t){statusEl.textContent=t;}
+  function setCount(){var n=0;for(var i=0;i<N;i++)if(cells[i])n++;countEl.textContent=n+" ブロック";}
+  function el(tag,attrs,text){var e=document.createElement(tag);if(attrs)for(var k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;return e;}
+  function stop(){if(timer){clearInterval(timer);timer=null;}}
+
+  function idle(){for(var i=0;i<N;i++){var r=Math.random();cells[i]=r<0.18?{t:THEMES[Math.floor(Math.random()*6)],p:Math.random()<0.5?"work":"life",label:""}:null;}paintAll();}
+
+  function patKey(){
+    var k=el("div",{"class":"patkey"});
+    var a=el("span");var ia=el("i");a.appendChild(ia);a.appendChild(document.createTextNode("仕事"));
+    var b=el("span");var ib=el("i",{"class":"pv"});b.appendChild(ib);b.appendChild(document.createTextNode("プライベート"));
+    k.appendChild(a);k.appendChild(b);return k;
+  }
+
+  function showIntro(){
+    stop();grid.classList.remove("inspectable");progressWrap.hidden=true;idle();setCount();setStatus("準備ができました");
+    panel.innerHTML="";
+    panel.appendChild(el("h1",{"class":"dot"},"あなたの答えを、並び直す"));
+    panel.appendChild(el("p",null,"仕事について4つ、プライベートについて4つ、手放したいものについて1つ。9つの質問に答えると、選んだ答えが色のついたブロックになって、画面に散らばります。最後にデフラグをかけて、並び直します。"));
+    panel.appendChild(el("p",null,"仕事の答えは塗りつぶしのブロック、プライベートの答えは模様つきのブロックになります。どう読むかは、あなたにおまかせします。これは診断ではありません。"));
+    panel.appendChild(patKey());
+    panel.appendChild(el("p",{"class":"hint"},"答えは保存されず、このページを閉じると消えます。"));
+    var a=el("div",{"class":"actions"});var b=el("button",{type:"button"},"はじめる");b.onclick=function(){showQuestion(0);};a.appendChild(b);panel.appendChild(a);b.focus({preventScroll:true});
+  }
+
+  function showQuestion(n){
+    var Q=QUESTIONS[n], A=answers[n];
+    for(var i=0;i<N;i++)cells[i]=null;paintAll();setCount();
+    setStatus("質問 "+(n+1)+" / "+QUESTIONS.length);
+    panel.innerHTML="";
+    panel.appendChild(el("span",{"class":"section-tag"},PARTLABEL[Q.part]));
+    panel.appendChild(el("p",{"class":"qcount dot"},(n+1)+" / "+QUESTIONS.length));
+    panel.appendChild(el("h2",{id:"qh"},Q.q));
+    panel.appendChild(el("p",{"class":"hint"},Q.letgo?"当てはまるものをいくつでも。選んだものは、デフラグの途中で消えていきます。なければ、そのまま進んでください。":"当てはまるものを、いくつでも選んでください。"));
+    var fs=el("fieldset",{"aria-labelledby":"qh"});var box=el("div",{"class":"options"});
+    Q.opts.forEach(function(o,idx){
+      var lab=el("label",{"class":"opt"});var cb=el("input",{type:"checkbox"});
+      cb.checked=A.sel.indexOf(idx)>-1;
+      cb.onchange=function(){var p=A.sel.indexOf(idx);if(cb.checked&&p<0)A.sel.push(idx);if(!cb.checked&&p>-1)A.sel.splice(p,1);};
+      lab.appendChild(cb);lab.appendChild(el("span",null,o[0]));box.appendChild(lab);
+    });
+    fs.appendChild(box);panel.appendChild(fs);
+    var ot=el("div",{"class":"other"});
+    ot.appendChild(el("label",{"for":"oth"},"その他（自由に書けます）"));
+    var inp=el("input",{type:"text",id:"oth",maxlength:"40",placeholder:"例：誰も気にしない資料の体裁まで整えてしまう"});
+    inp.value=A.other;inp.oninput=function(){A.other=inp.value;};ot.appendChild(inp);
+    if(!Q.letgo){
+      ot.appendChild(el("p",{"class":"hint",style:"margin:8px 0 0"},"書いた場合は、近いと思う動きを一つ選んでください。"));
+      var chips=el("div",{"class":"chips",role:"radiogroup","aria-label":"近い動き"});
+      THEMES.forEach(function(t){
+        var c=el("label",{"class":"chip"});var r=el("input",{type:"radio",name:"ot"});r.checked=A.ot===t;
+        r.onchange=function(){A.ot=t;};
+        var sw=el("i",{"class":"cell t-"+t});
+        c.appendChild(r);c.appendChild(sw);c.appendChild(document.createTextNode(VERB[t]));chips.appendChild(c);
+      });
+      ot.appendChild(chips);
+    }
+    panel.appendChild(ot);
+    var a=el("div",{"class":"actions"});
+    var back=el("button",{type:"button"},"戻る");back.onclick=function(){n===0?showIntro():showQuestion(n-1);};
+    var next=el("button",{type:"button"},n===QUESTIONS.length-1?"答えを散らばらせる":"次へ");
+    next.onclick=function(){n===QUESTIONS.length-1?showScatter():showQuestion(n+1);};
+    a.appendChild(back);a.appendChild(next);panel.appendChild(a);
+    var first=box.querySelector("input");if(first)first.focus({preventScroll:true});
+  }
+
+  function picksAll(){
+    var picks=[];
+    QUESTIONS.forEach(function(Q,qi){
+      var A=answers[qi];
+      A.sel.forEach(function(idx){picks.push({t:Q.opts[idx][1],label:Q.opts[idx][0],p:Q.part});});
+      var txt=(A.other||"").trim();
+      if(txt){ if(Q.letgo) picks.push({t:"go",label:txt,p:"go"}); else if(A.ot) picks.push({t:A.ot,label:txt,p:Q.part}); }
+    });
+    return picks;
+  }
+
+  function buildBlocks(){
+    var picks=picksAll();
+    var k=picks.length?Math.max(3,Math.min(12,Math.floor(440/picks.length))):0;
+    var blocks=[];picks.forEach(function(p){for(var j=0;j<k;j++)blocks.push(p);});
+    var pos=[];for(var i=0;i<N;i++)pos.push(i);
+    for(var i=N-1;i>0;i--){var r=Math.floor(Math.random()*(i+1));var t=pos[i];pos[i]=pos[r];pos[r]=t;}
+    for(var i=0;i<N;i++)cells[i]=null;
+    blocks.slice(0,N).forEach(function(b,bi){cells[pos[bi]]=b;});
+  }
+
+  function showScatter(){
+    var missingOther=[];
+    QUESTIONS.forEach(function(Q,qi){var A=answers[qi];if(!Q.letgo&&(A.other||"").trim()&&!A.ot)missingOther.push(qi);});
+    if(missingOther.length){showQuestion(missingOther[0]);setStatus("その他に近い動きを選んでください");return;}
+    buildBlocks();paintAll();setCount();
+    var has=false;for(var i=0;i<N;i++)if(cells[i]&&cells[i].t!=="go")has=true;
+    panel.innerHTML="";
+    if(!has){
+      setStatus("ブロックがありません");
+      panel.appendChild(el("h2",null,"まだ、ひとつも選ばれていません"));
+      panel.appendChild(el("p",null,"仕事やプライベートの質問で、当てはまるものを一つ以上選ぶと、ブロックが現れます。"));
+      var a0=el("div",{"class":"actions"});var b0=el("button",{type:"button"},"質問に戻る");b0.onclick=function(){showQuestion(0);};a0.appendChild(b0);panel.appendChild(a0);b0.focus({preventScroll:true});return;
+    }
+    setStatus("断片化しています");
+    panel.appendChild(el("h2",null,"答えが、散らばりました"));
+    panel.appendChild(patKey());
+    panel.appendChild(el("p",null,"仕事の答えも、プライベートの答えも、あちこちに散らばっています。デフラグを始めると、同じ色同士が少しずつ並び直されていきます。途中で何もしなくても大丈夫です。"));
+    var a=el("div",{"class":"actions"});
+    var back=el("button",{type:"button"},"答えを直す");back.onclick=function(){showQuestion(0);};
+    var go=el("button",{type:"button"},"デフラグを始める");go.onclick=runDefrag;
+    a.appendChild(back);a.appendChild(go);panel.appendChild(a);go.focus({preventScroll:true});
+  }
+
+  function key(c){return c.t+"|"+c.p;}
+
+  function runDefrag(){
+    panel.innerHTML="";panel.appendChild(el("h2",null,"デフラグ中です"));
+    panel.appendChild(el("p",null,"ブロックが並び直されるのを、ただ眺めていてください。"));
+    progressWrap.hidden=false;bar.style.width="0%";
+    var goIdx=[];for(var i=0;i<N;i++)if(cells[i]&&cells[i].t==="go")goIdx.push(i);
+    var counts={};THEMES.forEach(function(t){counts[t]={work:0,life:0};});
+    for(var i=0;i<N;i++){var c=cells[i];if(c&&c.t!=="go")counts[c.t][c.p]++;}
+    var order=THEMES.filter(function(t){return counts[t].work+counts[t].life>0;})
+      .sort(function(a,b){return (counts[b].work+counts[b].life)-(counts[a].work+counts[a].life);});
+    var target=[];order.forEach(function(t){for(var j=0;j<counts[t].work;j++)target.push(t+"|work");for(var j=0;j<counts[t].life;j++)target.push(t+"|life");});
+    var total=target.length, phase=goIdx.length?1:2, gi=0, pi=0, act=[], steps=goIdx.length+total;
+    function clr(){act.forEach(function(x){cellsEl[x].classList.remove("active");});act=[];}
+    function mark(x){cellsEl[x].classList.add("active");act.push(x);}
+    function tick(){
+      clr();var per=reduce?99999:3;
+      for(var s=0;s<per;s++){
+        if(phase===1){
+          if(gi>=goIdx.length){phase=2;setStatus("ファイルを移動しています");continue;}
+          setStatus("手放すものを消しています");var x=goIdx[gi++];cells[x]=null;paint(x);if(!reduce)mark(x);
+        }else{
+          while(pi<total&&cells[pi]&&key(cells[pi])===target[pi])pi++;
+          if(pi>=total){finish();return;}
+          var j=-1;for(var y=pi+1;y<N;y++){if(cells[y]&&key(cells[y])===target[pi]){j=y;break;}}
+          if(j<0){pi++;continue;}
+          var tmp=cells[pi];cells[pi]=cells[j];cells[j]=tmp;paint(pi);paint(j);if(!reduce){mark(pi);mark(j);}pi++;
+        }
+      }
+      var done=phase===1?gi:goIdx.length+pi;bar.style.width=Math.min(100,Math.round(done/steps*100))+"%";setCount();
+    }
+    setStatus(goIdx.length?"手放すものを消しています":"ファイルを移動しています");
+    stop();if(reduce)tick();else timer=setInterval(tick,40);
+  }
+
+  function uniq(arr){var o=[];arr.forEach(function(x){if(o.indexOf(x)<0)o.push(x);});return o;}
+
+  function finish(){
+    stop();for(var i=0;i<N;i++)cellsEl[i].classList.remove("active");
+    bar.style.width="100%";setStatus("デフラグが完了しました");setCount();grid.classList.add("inspectable");
+    var g={};THEMES.forEach(function(t){g[t]={n:0,work:[],life:[]};});
+    for(var i=0;i<N;i++){var c=cells[i];if(!c)continue;g[c.t].n++;g[c.t][c.p].push(c.label);}
+    var order=THEMES.filter(function(t){return g[t].n>0;}).sort(function(a,b){return g[b].n-g[a].n;});
+    panel.innerHTML="";
+    panel.appendChild(el("h2",null,"並び直りました"));
+    panel.appendChild(patKey());
+    panel.appendChild(el("p",null,"大きなかたまりから順に、あなたが選んだ答えを並べています。仕事とプライベートの両方に出てきた色には、印をつけました。ブロックを押すと、どの答えだったかが下に表示されます。"));
+    var ul=el("ul",{"class":"legend"});
+    order.forEach(function(t){
+      var w=uniq(g[t].work), l=uniq(g[t].life);
+      var li=el("li");li.appendChild(el("span",{"class":"sw cell t-"+t,"aria-hidden":"true"}));
+      var box=el("span",{"class":"labels"});
+      var head=el("span",null,"");
+      if(w.length&&l.length){head.appendChild(el("span",{"class":"both"},"仕事とプライベートの両方"));box.appendChild(head);}
+      if(w.length)box.appendChild(el("small",null,"仕事："+w.join("、")));
+      if(l.length)box.appendChild(el("small",null,"プライベート："+l.join("、")));
+      li.appendChild(box);ul.appendChild(li);
+    });
+    panel.appendChild(ul);
+    var job=JOB, given=answers[0].sel, good=answers[1].sel;
+    var onlyGiven=given.filter(function(x){return good.indexOf(x)<0;}).map(function(x){return job[x][0];});
+    var onlyGood=good.filter(function(x){return given.indexOf(x)<0;}).map(function(x){return job[x][0];});
+    if(onlyGiven.length||onlyGood.length){
+      panel.appendChild(el("h2",{"class":"gaph"},"任されていたことと、得意なことのずれ"));
+      if(onlyGiven.length)panel.appendChild(el("p",null,"任されていたけれど、得意だとは選ばなかったこと："+onlyGiven.join("、")));
+      if(onlyGood.length)panel.appendChild(el("p",null,"得意だけれど、任されていなかったこと："+onlyGood.join("、")));
+    }
+    var gone=picksAll().filter(function(p){return p.t==="go";}).map(function(p){return p.label;});
+    if(gone.length)panel.appendChild(el("p",{"class":"note"},"消えたもの："+gone.join("、")));
+    var fb=el("div",{"class":"feedback"});
+    fb.appendChild(el("p",null,"よければ、その他に書いた言葉や、使ってみた感想を教えてください。ツールの選択肢を増やす参考にします。匿名で送れます。"));
+    fb.appendChild(el("p",{"class":"hint",style:"margin:0 0 6px"},"お名前や会社名など、個人や職場が特定できることは書かないでください。"));
+    if(FEEDBACK_URL){var lk=el("a",{href:FEEDBACK_URL,target:"_blank",rel:"noopener"},"感想を送る");fb.appendChild(lk);}
+    else{fb.appendChild(el("span",{"class":"hint"},"（窓口は準備中です）"));}
+    panel.appendChild(fb);
+    var a=el("div",{"class":"actions"});
+    var again=el("button",{type:"button"},"答えを変えてもう一度");again.onclick=function(){showQuestion(0);};
+    var reset=el("button",{type:"button"},"最初から");reset.onclick=function(){answers=fresh();showIntro();};
+    a.appendChild(again);a.appendChild(reset);panel.appendChild(a);again.focus({preventScroll:true});
+  }
+
+  grid.addEventListener("click",function(e){
+    if(!grid.classList.contains("inspectable"))return;
+    var i=e.target&&e.target.dataset?e.target.dataset.i:null;if(i==null)return;
+    var c=cells[+i];setStatus(c?("［"+PARTLABEL[c.p]+"］"+c.label):"空き領域");
+  });
+
+  showIntro();
+})();
+</script>
+</body>
+</html>
